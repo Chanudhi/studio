@@ -2,7 +2,8 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom"; // useFormStatus remains from react-dom
+import { useActionState } from "react"; // useActionState is imported from react
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -51,7 +52,7 @@ function SubmitButton() {
 }
 
 export default function IngredientForm({ onFormSubmitResult, setIsLoading }: IngredientFormProps) {
-  const [state, formAction] = useFormState(getRecipeSuggestionsAction, {recipes: [], error: undefined, message: undefined});
+  const [state, formAction] = useActionState(getRecipeSuggestionsAction, {recipes: [], error: undefined, message: undefined});
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
