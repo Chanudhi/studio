@@ -12,13 +12,13 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 // Define the input schema for fetching recipe details
-export const FetchRecipeDetailsInputSchema = z.object({
+const FetchRecipeDetailsInputSchema = z.object({
   recipeName: z.string().describe('The name of the recipe to fetch details for.'),
 });
 export type FetchRecipeDetailsInput = z.infer<typeof FetchRecipeDetailsInputSchema>;
 
 // Define the output schema for the fetched recipe details
-export const FetchRecipeDetailsOutputSchema = z.object({
+const FetchRecipeDetailsOutputSchema = z.object({
   recipeName: z.string().describe('The name of the recipe.'),
   ingredients: z.array(z.string()).describe('A list of ingredients for the recipe.'),
   instructions: z.string().describe('The cooking instructions for the recipe.'),
