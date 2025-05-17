@@ -2,17 +2,18 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChefHat, Utensils } from 'lucide-react';
+import { ChefHat } from 'lucide-react';
 import IngredientForm from '@/components/fridge-chef/IngredientForm';
 import RecipeList from '@/components/fridge-chef/RecipeList';
-import type { FormState } from '@/app/actions'; // Will create this type
+import type { FormState } from '@/app/actions';
+import type { RecipeDetail } from '@/ai/flows/suggest-recipes'; // Import RecipeDetail
 
 export default function FridgeChefPage() {
-  const [recipes, setRecipes] = useState<string[]>([]);
+  const [recipes, setRecipes] = useState<RecipeDetail[]>([]); // Updated to RecipeDetail[]
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [formKey, setFormKey] = useState(Date.now()); // To reset form
+  const [formKey, setFormKey] = useState(Date.now());
 
   const handleFormSubmitResult = useCallback((state: FormState) => {
     setIsLoading(false);
@@ -29,7 +30,7 @@ export default function FridgeChefPage() {
         // setFormKey(Date.now()); 
       }
     }
-  }, []); // State setters (setIsLoading, setError, setRecipes, setMessage) are stable and don't need to be in deps.
+  }, []); 
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -46,7 +47,7 @@ export default function FridgeChefPage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           <IngredientForm
-            key={formKey} // Allows resetting the form if needed
+            key={formKey}
             onFormSubmitResult={handleFormSubmitResult}
             setIsLoading={setIsLoading}
           />
