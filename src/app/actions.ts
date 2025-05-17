@@ -7,8 +7,8 @@ import { z } from "zod";
 
 const SuggestActionInputSchema = z.object({
   ingredients: z.string().min(3, "Please enter at least one ingredient (minimum 3 characters)."),
-  dietaryRestrictions: z.string().optional().transform(val => val === "" ? undefined : val),
-  cuisinePreferences: z.string().optional().transform(val => val === "" ? undefined : val),
+  dietaryRestrictions: z.string().optional().transform(val => val === "" || val === null ? undefined : val),
+  cuisinePreferences: z.string().optional().transform(val => val === "" || val === null ? undefined : val),
 });
 
 export interface SuggestFormState {
@@ -50,15 +50,36 @@ export async function getRecipeSuggestionsAction(
       return { recipes: output.recipes, message: "Here are your recipe suggestions!" };
     }
     return { recipes: [], message: "No recipes found for these ingredients. Try different options!" };
-  } catch (error) {
-    console.error("Error fetching recipe suggestions:", error);
-    let errorMessage = "Failed to generate recipes. The culinary AI might be busy. Please try again.";
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    } else if (typeof error === 'string') {
-      errorMessage = error;
+  } catch (e) {
+    const error = e as any; // To access potential .message or other props
+    console.error("Error in getRecipeSuggestionsAction (raw error object):", error);
+    // For more detailed logging, you might stringify if it's an object:
+    // if (typeof error === 'object' && error !== null) {
+    //   console.error("Error details (stringified):", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    // }
+
+
+    let clientErrorMessage = "An unexpected error occurred while suggesting recipes. Please try again later.";
+
+    if (typeof error?.message === 'string' && error.message.length > 0) {
+        // Avoid sending overly technical or very long error messages to the client.
+        if (error.message.length < 250 && !error.message.includes('\n') && !error.message.toLowerCase().includes('internal') && !error.message.toLowerCase().includes('server')) {
+            clientErrorMessage = error.message;
+        } else {
+            // Log the detailed message for developers, but give user a more generic one
+            console.error("Original error message was too long, complex, or internal for client:", error.message);
+            clientErrorMessage = "The AI chef faced a technical difficulty. Please try again, or check ingredients for unusual characters.";
+        }
+    } else if (typeof error === 'string' && error.length > 0) {
+        if (error.length < 250 && !error.includes('\n')) {
+            clientErrorMessage = error;
+        } else {
+            console.error("Original error string was too long or complex for client:", error);
+            clientErrorMessage = "The AI chef encountered an unexpected issue. Please try again.";
+        }
     }
-    return { error: errorMessage };
+    
+    return { error: clientErrorMessage };
   }
 }
 
@@ -90,7 +111,7 @@ export async function getRecipeDetailsAction(
     console.error(`Error fetching details for recipe "${recipeName}":`, error);
     let errorMessage = `Failed to fetch details for "${recipeName}". Please try again.`;
     if (error instanceof Error) {
-      errorMessage = error.message; // Use the error message from the flow
+      errorMessage = error.message; 
     } else if (typeof error === 'string') {
       errorMessage = error;
     }
