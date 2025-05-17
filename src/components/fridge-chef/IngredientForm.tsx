@@ -1,9 +1,9 @@
 
 "use client";
 
-import React, { useEffect } from "react";
-import { useFormStatus } from "react-dom"; // useFormStatus remains from react-dom
-import { useActionState } from "react"; // useActionState is imported from react
+import React, { useEffect, useTransition } from "react"; // Import useTransition
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -53,6 +53,7 @@ function SubmitButton() {
 
 export default function IngredientForm({ onFormSubmitResult, setIsLoading }: IngredientFormProps) {
   const [state, formAction] = useActionState(getRecipeSuggestionsAction, {recipes: [], error: undefined, message: undefined});
+  const [isSubmitPending, startTransition] = useTransition(); // For server action pending state
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -64,11 +65,10 @@ export default function IngredientForm({ onFormSubmitResult, setIsLoading }: Ing
     },
   });
   
-  const { formState: { isSubmitting } } = form;
-
+  // RHF's isSubmitting is for its own sync submit cycle, isSubmitPending is for the async server action.
   useEffect(() => {
-    setIsLoading(isSubmitting);
-  }, [isSubmitting, setIsLoading]);
+    setIsLoading(isSubmitPending);
+  }, [isSubmitPending, setIsLoading]);
   
   useEffect(() => {
     // This effect handles the result from the server action
@@ -101,8 +101,10 @@ export default function IngredientForm({ onFormSubmitResult, setIsLoading }: Ing
     if (values.cuisinePreferences) {
       formData.append("cuisinePreferences", values.cuisinePreferences);
     }
-    setIsLoading(true); // Set loading true immediately on submit
-    formAction(formData); // Call the server action
+    // setIsLoading(true); // Removed: Handled by useEffect with isSubmitPending
+    startTransition(() => { // Wrap the server action call in startTransition
+      formAction(formData); 
+    });
   };
 
 
