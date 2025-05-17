@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Recipe suggestion flow.
@@ -28,7 +29,7 @@ export type SuggestRecipesInput = z.infer<typeof SuggestRecipesInputSchema>;
 const SuggestRecipesOutputSchema = z.object({
   recipes: z
     .array(z.string())
-    .describe('A list of recipe suggestions based on the provided ingredients and preferences.'),
+    .describe('A list of recipe suggestions based on the provided ingredients and preferences. If no recipes are found, this should be an empty array.'),
 });
 export type SuggestRecipesOutput = z.infer<typeof SuggestRecipesOutputSchema>;
 
@@ -40,15 +41,15 @@ const suggestRecipesPrompt = ai.definePrompt({
   name: 'suggestRecipesPrompt',
   input: {schema: SuggestRecipesInputSchema},
   output: {schema: SuggestRecipesOutputSchema},
-  prompt: `You are a recipe suggestion AI. Based on the ingredients, dietary restrictions, and cuisine preferences provided, suggest a list of recipes.
+  prompt: `You are a recipe suggestion AI. Your task is to suggest recipes based on a list of available ingredients, dietary restrictions, and cuisine preferences.
+You MUST respond with a JSON object matching the specified output schema.
+The JSON object should have a key "recipes", which is an array of strings. Each string should be a recipe name.
+If no recipes can be found based on the input, the "recipes" array MUST be empty (e.g., { "recipes": [] }).
+Do not include numbering like "1." or "-" in the recipe names themselves within the JSON array. Ensure recipe names are valid strings and not null.
 
-Ingredients: {{{ingredients}}}
-Dietary Restrictions: {{{dietaryRestrictions}}}
-Cuisine Preferences: {{{cuisinePreferences}}}
-
-Suggest recipes that utilize the provided ingredients, taking into account any dietary restrictions and cuisine preferences. Return a numbered list of recipe suggestions.
-
-Recipes:
+Available ingredients: {{{ingredients}}}
+Optional dietary restrictions: {{{dietaryRestrictions}}}
+Optional cuisine preferences: {{{cuisinePreferences}}}
 `,
 });
 
@@ -60,6 +61,12 @@ const suggestRecipesFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await suggestRecipesPrompt(input);
-    return output!;
+    // Ensure output is not null/undefined and recipes is an array, even if empty.
+    // The Zod schema validation should handle this, but a fallback can be added if needed.
+    if (!output || !Array.isArray(output.recipes)) {
+      return { recipes: [] }; // Fallback to empty array if output is malformed
+    }
+    return output;
   }
 );
+
