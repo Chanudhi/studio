@@ -6,8 +6,8 @@ import { z } from "zod";
 
 const ActionInputSchema = z.object({
   ingredients: z.string().min(3, "Please enter at least one ingredient (minimum 3 characters)."),
-  dietaryRestrictions: z.string().optional(),
-  cuisinePreferences: z.string().optional(),
+  dietaryRestrictions: z.string().optional().transform(val => val === "" ? undefined : val),
+  cuisinePreferences: z.string().optional().transform(val => val === "" ? undefined : val),
 });
 
 export interface FormState {
@@ -22,11 +22,20 @@ export async function getRecipeSuggestionsAction(
 ): Promise<FormState> {
   const rawFormData = {
     ingredients: formData.get("ingredients") as string,
-    dietaryRestrictions: formData.get("dietaryRestrictions") as string | undefined,
-    cuisinePreferences: formData.get("cuisinePreferences") as string | undefined,
+    // FormData.get will return null if key not present, or string if present.
+    // If present and empty, it's "".
+    dietaryRestrictions: formData.get("dietaryRestrictions") as string | null,
+    cuisinePreferences: formData.get("cuisinePreferences") as string | null,
   };
 
-  const validatedFields = ActionInputSchema.safeParse(rawFormData);
+  // Ensure null from formData.get is treated as undefined for Zod's optional
+  const processedFormData = {
+    ingredients: rawFormData.ingredients,
+    dietaryRestrictions: rawFormData.dietaryRestrictions === null ? undefined : rawFormData.dietaryRestrictions,
+    cuisinePreferences: rawFormData.cuisinePreferences === null ? undefined : rawFormData.cuisinePreferences,
+  };
+
+  const validatedFields = ActionInputSchema.safeParse(processedFormData);
 
   if (!validatedFields.success) {
     // Get first error for simplicity
@@ -39,6 +48,7 @@ export async function getRecipeSuggestionsAction(
   }
 
   try {
+    // validatedFields.data will have dietaryRestrictions/cuisinePreferences as undefined if they were empty strings
     const output: SuggestRecipesOutput = await suggestRecipes(validatedFields.data as SuggestRecipesInput);
     if (output.recipes && output.recipes.length > 0) {
       return { recipes: output.recipes, message: "Here are your recipe suggestions!" };
@@ -49,3 +59,4 @@ export async function getRecipeSuggestionsAction(
     return { error: "Failed to generate recipes. The culinary AI might be busy. Please try again." };
   }
 }
+

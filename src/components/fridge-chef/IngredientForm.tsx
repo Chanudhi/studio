@@ -28,8 +28,8 @@ const formSchema = z.object({
   ingredients: z.string().min(3, {
     message: "Please enter at least one ingredient (minimum 3 characters).",
   }),
-  dietaryRestrictions: z.string().optional(),
-  cuisinePreferences: z.string().optional(),
+  dietaryRestrictions: z.string().optional().transform(val => val === "" ? undefined : val),
+  cuisinePreferences: z.string().optional().transform(val => val === "" ? undefined : val),
 });
 
 type IngredientFormProps = {
@@ -95,6 +95,7 @@ export default function IngredientForm({ onFormSubmitResult, setIsLoading }: Ing
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const formData = new FormData();
     formData.append("ingredients", values.ingredients);
+    // After transformation, values.dietaryRestrictions will be undefined if empty string was entered
     if (values.dietaryRestrictions) {
       formData.append("dietaryRestrictions", values.dietaryRestrictions);
     }
@@ -176,3 +177,4 @@ export default function IngredientForm({ onFormSubmitResult, setIsLoading }: Ing
     </Form>
   );
 }
+
