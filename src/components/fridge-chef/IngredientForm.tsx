@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useTransition } from "react"; // Import useTransition
+import React, { useEffect, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { useActionState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Not used, but keeping for consistency if needed later
 import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
@@ -20,7 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { getRecipeSuggestionsAction, type FormState } from "@/app/actions";
+import { getRecipeSuggestionsAction, type SuggestFormState } from "@/app/actions";
 import { Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -33,7 +33,7 @@ const formSchema = z.object({
 });
 
 type IngredientFormProps = {
-  onFormSubmitResult: (state: FormState) => void;
+  onFormSubmitResult: (state: SuggestFormState) => void;
   setIsLoading: (isLoading: boolean) => void;
 };
 
@@ -53,7 +53,7 @@ function SubmitButton() {
 
 export default function IngredientForm({ onFormSubmitResult, setIsLoading }: IngredientFormProps) {
   const [state, formAction] = useActionState(getRecipeSuggestionsAction, {recipes: [], error: undefined, message: undefined});
-  const [isSubmitPending, startTransition] = useTransition(); // For server action pending state
+  const [isSubmitPending, startTransition] = useTransition();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -65,14 +65,11 @@ export default function IngredientForm({ onFormSubmitResult, setIsLoading }: Ing
     },
   });
   
-  // RHF's isSubmitting is for its own sync submit cycle, isSubmitPending is for the async server action.
   useEffect(() => {
     setIsLoading(isSubmitPending);
   }, [isSubmitPending, setIsLoading]);
   
   useEffect(() => {
-    // This effect handles the result from the server action
-    // It ensures onFormSubmitResult is called after the state is updated
     onFormSubmitResult(state);
     if (state.error) {
       toast({
@@ -86,7 +83,7 @@ export default function IngredientForm({ onFormSubmitResult, setIsLoading }: Ing
         description: state.message,
        });
        if(state.recipes && state.recipes.length > 0) {
-         form.reset(); // Reset form fields on successful recipe generation
+         // form.reset(); // Form reset can be handled by parent if formKey changes
        }
     }
   }, [state, onFormSubmitResult, toast, form]);
@@ -95,15 +92,13 @@ export default function IngredientForm({ onFormSubmitResult, setIsLoading }: Ing
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const formData = new FormData();
     formData.append("ingredients", values.ingredients);
-    // After transformation, values.dietaryRestrictions will be undefined if empty string was entered
     if (values.dietaryRestrictions) {
       formData.append("dietaryRestrictions", values.dietaryRestrictions);
     }
     if (values.cuisinePreferences) {
       formData.append("cuisinePreferences", values.cuisinePreferences);
     }
-    // setIsLoading(true); // Removed: Handled by useEffect with isSubmitPending
-    startTransition(() => { // Wrap the server action call in startTransition
+    startTransition(() => {
       formAction(formData); 
     });
   };
@@ -177,4 +172,3 @@ export default function IngredientForm({ onFormSubmitResult, setIsLoading }: Ing
     </Form>
   );
 }
-

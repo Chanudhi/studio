@@ -6,16 +6,17 @@ import RecipeCard from "./RecipeCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info, AlertTriangle, CheckCircle2 } from "lucide-react";
-import type { RecipeDetail } from "@/ai/flows/suggest-recipes"; // Import RecipeDetail
+import type { RecipeDetail } from "@/ai/flows/suggest-recipes";
 
 type RecipeListProps = {
-  recipes: RecipeDetail[]; // Updated from string[]
+  recipes: RecipeDetail[];
   isLoading: boolean;
   error: string | null;
   message?: string | null; 
+  onViewRecipe: (recipeName: string) => void;
 };
 
-export default function RecipeList({ recipes, isLoading, error, message }: RecipeListProps) {
+export default function RecipeList({ recipes, isLoading, error, message, onViewRecipe }: RecipeListProps) {
   if (isLoading) {
     return (
       <div className="mt-10 grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
@@ -67,7 +68,7 @@ export default function RecipeList({ recipes, isLoading, error, message }: Recip
       <h2 className="text-3xl font-semibold mb-6 text-center text-primary">Suggested Recipes</h2>
       <div className="grid gap-x-6 gap-y-8 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
         {recipes.map((recipe, index) => (
-          <RecipeCard key={index} recipe={recipe} />
+          <RecipeCard key={index} recipe={recipe} onViewRecipe={onViewRecipe} />
         ))}
       </div>
     </div>

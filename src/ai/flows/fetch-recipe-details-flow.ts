@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Flow for fetching detailed recipe information from an external API.
+ * @fileOverview Flow for fetching detailed recipe information from TheMealDB API.
  *
  * - fetchRecipeDetails - A function that fetches details for a given recipe name.
  * - FetchRecipeDetailsInput - The input type for the fetchRecipeDetails function.
@@ -22,105 +22,85 @@ export const FetchRecipeDetailsOutputSchema = z.object({
   recipeName: z.string().describe('The name of the recipe.'),
   ingredients: z.array(z.string()).describe('A list of ingredients for the recipe.'),
   instructions: z.string().describe('The cooking instructions for the recipe.'),
-  prepTime: z.string().optional().describe('Estimated preparation time.'),
-  cookTime: z.string().optional().describe('Estimated cooking time.'),
-  servings: z.string().optional().describe('Number of servings.'),
+  prepTime: z.string().optional().describe('Estimated preparation time (often not available from TheMealDB).'),
+  cookTime: z.string().optional().describe('Estimated cooking time (often not available from TheMealDB).'),
+  servings: z.string().optional().describe('Number of servings (often not available from TheMealDB).'),
   sourceUrl: z.string().url().optional().describe('The original URL of the recipe if available.'),
-  // You can add more fields here based on what your chosen API provides
+  imageUrl: z.string().url().optional().describe('URL of an image for the recipe from TheMealDB.')
 });
 export type FetchRecipeDetailsOutput = z.infer<typeof FetchRecipeDetailsOutputSchema>;
 
-/**
- * Placeholder tool for fetching recipe data from a hypothetical external API.
- * YOU WILL NEED TO IMPLEMENT THE LOGIC FOR THIS TOOL.
- */
 const fetchExternalRecipeApiTool = ai.defineTool(
   {
     name: 'fetchExternalRecipeApiTool',
-    description: 'Fetches detailed recipe information from an external recipe API based on a recipe name.',
-    inputSchema: FetchRecipeDetailsInputSchema, // Tool input: just the recipe name
-    outputSchema: FetchRecipeDetailsOutputSchema, // Tool output: detailed recipe info
+    description: 'Fetches detailed recipe information from TheMealDB API based on a recipe name.',
+    inputSchema: FetchRecipeDetailsInputSchema,
+    outputSchema: FetchRecipeDetailsOutputSchema,
   },
   async (input) => {
-    // ========================================================================
-    // TODO: IMPLEMENT THIS FUNCTION
-    // 1. Choose a Recipe API (e.g., Spoonacular, Edamam, TheMealDB).
-    // 2. Get an API key if required and store it securely (e.g., in .env).
-    // 3. Construct the API request URL using the input.recipeName.
-    //    Example: const apiKey = process.env.RECIPE_API_KEY;
-    //             const url = `https://api.example.com/recipes?search=${encodeURIComponent(input.recipeName)}&apiKey=${apiKey}`;
-    // 4. Make an HTTP GET request (e.g., using `fetch`).
-    //    Example: const response = await fetch(url);
-    //             if (!response.ok) {
-    //               throw new Error(`API request failed with status ${response.status}`);
-    //             }
-    //             const data = await response.json();
-    // 5. Parse the response data and map it to the FetchRecipeDetailsOutputSchema.
-    //    This will be highly specific to the API you choose.
-    //    Example (very simplified):
-    //    if (data.results && data.results.length > 0) {
-    //      const recipe = data.results[0];
-    //      return {
-    //        recipeName: recipe.title || input.recipeName,
-    //        ingredients: recipe.extendedIngredients?.map((ing: any) => ing.original) || [],
-    //        instructions: recipe.instructions || 'No instructions provided.',
-    //        prepTime: recipe.preparationMinutes?.toString(),
-    //        cookTime: recipe.cookingMinutes?.toString(),
-    //        servings: recipe.servings?.toString(),
-    //        sourceUrl: recipe.sourceUrl,
-    //      };
-    //    } else {
-    //      throw new Error(`No recipe details found for "${input.recipeName}"`);
-    //    }
-    // ========================================================================
+    const recipeName = input.recipeName;
+    const apiUrl = `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(recipeName)}`;
 
-    // Placeholder implementation (remove once you implement the actual API call)
-    console.warn(
-      `fetchExternalRecipeApiTool is using placeholder data for "${input.recipeName}". Please implement the actual API call.`
-    );
-    return {
-      recipeName: input.recipeName,
-      ingredients: [
-        `Ingredient 1 for ${input.recipeName}`,
-        `Ingredient 2 for ${input.recipeName}`,
-      ],
-      instructions: `Placeholder instructions for ${input.recipeName}. You need to implement the API call in fetchExternalRecipeApiTool.`,
-      prepTime: '10 mins (placeholder)',
-      cookTime: '20 mins (placeholder)',
-      servings: '2 (placeholder)',
-      sourceUrl: 'https://example.com/placeholder-recipe',
-    };
+    try {
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error(`TheMealDB API request failed with status ${response.status}`);
+      }
+      const data = await response.json();
+
+      if (!data.meals || data.meals.length === 0) {
+        throw new Error(`No recipe details found for "${recipeName}" on TheMealDB.`);
+      }
+
+      const meal = data.meals[0]; // Assuming the first result is the most relevant
+
+      const ingredients: string[] = [];
+      for (let i = 1; i <= 20; i++) {
+        const ingredient = meal[`strIngredient${i}` as keyof typeof meal] as string;
+        const measure = meal[`strMeasure${i}` as keyof typeof meal] as string;
+        if (ingredient && ingredient.trim() !== "") {
+          ingredients.push(`${measure ? measure.trim() : ''} ${ingredient.trim()}`.trim());
+        }
+      }
+
+      return {
+        recipeName: meal.strMeal as string,
+        ingredients: ingredients,
+        instructions: meal.strInstructions as string || 'No instructions provided.',
+        sourceUrl: meal.strSource as string || meal.strYoutube as string || undefined,
+        imageUrl: meal.strMealThumb as string || undefined,
+        // prepTime, cookTime, servings are not directly available or reliably parseable from TheMealDB for all recipes
+        prepTime: undefined, 
+        cookTime: undefined,
+        servings: undefined,
+      };
+    } catch (error) {
+      console.error(`Error fetching recipe from TheMealDB for "${recipeName}":`, error);
+      if (error instanceof Error) {
+        throw new Error(`Failed to fetch details for "${recipeName}" from TheMealDB: ${error.message}`);
+      }
+      throw new Error(`An unknown error occurred while fetching details for "${recipeName}" from TheMealDB.`);
+    }
   }
 );
 
-// Define the Genkit flow
 const fetchRecipeDetailsFlowInternal = ai.defineFlow(
   {
     name: 'fetchRecipeDetailsFlowInternal',
     inputSchema: FetchRecipeDetailsInputSchema,
     outputSchema: FetchRecipeDetailsOutputSchema,
-    // We will make this flow use the tool we defined.
-    // The prompt itself can be simple, as the tool does the heavy lifting.
-    // Alternatively, the LLM could decide *if* to call the tool based on a more complex prompt.
-    // For this direct use case, we'll just call the tool.
   },
   async (input) => {
-    // Directly call the tool.
-    // For more complex scenarios, you might have an LLM prompt that *decides* to use this tool.
     try {
       const recipeDetails = await fetchExternalRecipeApiTool(input);
       return recipeDetails;
     } catch (error) {
       console.error(`Error in fetchRecipeDetailsFlow for "${input.recipeName}":`, error);
-      // You might want to return a more structured error or a default state
-      throw new Error(
-        `Failed to fetch details for recipe "${input.recipeName}". ${error instanceof Error ? error.message : ''}`
-      );
+      throw error; // Re-throw the error to be caught by the caller (e.g., server action)
     }
   }
 );
 
-// Exported wrapper function to be called by server actions or other server-side code
 export async function fetchRecipeDetails(input: FetchRecipeDetailsInput): Promise<FetchRecipeDetailsOutput> {
   return fetchRecipeDetailsFlowInternal(input);
 }

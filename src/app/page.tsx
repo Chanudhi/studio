@@ -5,32 +5,75 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChefHat } from 'lucide-react';
 import IngredientForm from '@/components/fridge-chef/IngredientForm';
 import RecipeList from '@/components/fridge-chef/RecipeList';
-import type { FormState } from '@/app/actions';
-import type { RecipeDetail } from '@/ai/flows/suggest-recipes'; // Import RecipeDetail
+import RecipeDetailModal from '@/components/fridge-chef/RecipeDetailModal';
+import type { SuggestFormState, RecipeDetailsState } from '@/app/actions';
+import { getRecipeDetailsAction } from '@/app/actions';
+import type { RecipeDetail } from '@/ai/flows/suggest-recipes';
+import type { FetchRecipeDetailsOutput } from '@/ai/flows/fetch-recipe-details-flow';
+import { useToast } from "@/hooks/use-toast";
+
 
 export default function FridgeChefPage() {
-  const [recipes, setRecipes] = useState<RecipeDetail[]>([]); // Updated to RecipeDetail[]
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [recipes, setRecipes] = useState<RecipeDetail[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const [suggestionMessage, setSuggestionMessage] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(Date.now());
 
-  const handleFormSubmitResult = useCallback((state: FormState) => {
-    setIsLoading(false);
+  const [selectedRecipeDetails, setSelectedRecipeDetails] = useState<FetchRecipeDetailsOutput | null>(null);
+  const [isRecipeDetailModalOpen, setIsRecipeDetailModalOpen] = useState(false);
+  const [isFetchingDetails, setIsFetchingDetails] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  
+  const { toast } = useToast();
+
+  const handleFormSubmitResult = useCallback((state: SuggestFormState) => {
+    setIsLoadingSuggestions(false);
     if (state.error) {
-      setError(state.error);
+      setSuggestionError(state.error);
       setRecipes([]);
-      setMessage(null);
+      setSuggestionMessage(null);
     } else {
       setRecipes(state.recipes || []);
-      setError(null);
-      setMessage(state.message || null);
-      if (state.recipes && state.recipes.length > 0) {
-        // Optionally reset form on success
-        // setFormKey(Date.now()); 
-      }
+      setSuggestionError(null);
+      setSuggestionMessage(state.message || null);
+      // if (state.recipes && state.recipes.length > 0) {
+      //   // setFormKey(Date.now()); 
+      // }
     }
   }, []); 
+
+  const handleViewRecipe = useCallback(async (recipeName: string) => {
+    setIsFetchingDetails(true);
+    setDetailError(null);
+    setSelectedRecipeDetails(null); // Clear previous details
+    setIsRecipeDetailModalOpen(true); // Open modal to show loading state
+
+    const result: RecipeDetailsState = await getRecipeDetailsAction(recipeName);
+    
+    setIsFetchingDetails(false);
+    if (result.error) {
+      setDetailError(result.error);
+      toast({
+        title: "Error Fetching Recipe",
+        description: result.error,
+        variant: "destructive",
+      });
+      // Keep modal open to show error, or close it:
+      // setIsRecipeDetailModalOpen(false); 
+    } else if (result.recipeDetails) {
+      setSelectedRecipeDetails(result.recipeDetails);
+      setDetailError(null);
+    } else {
+      const errMsg = "Recipe details not found, or an unexpected error occurred.";
+      setDetailError(errMsg);
+      toast({
+        title: "Recipe Not Found",
+        description: errMsg,
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -49,11 +92,25 @@ export default function FridgeChefPage() {
           <IngredientForm
             key={formKey}
             onFormSubmitResult={handleFormSubmitResult}
-            setIsLoading={setIsLoading}
+            setIsLoading={setIsLoadingSuggestions}
           />
-          <RecipeList recipes={recipes} isLoading={isLoading} error={error} message={message} />
+          <RecipeList 
+            recipes={recipes} 
+            isLoading={isLoadingSuggestions} 
+            error={suggestionError} 
+            message={suggestionMessage}
+            onViewRecipe={handleViewRecipe}
+          />
         </div>
       </main>
+
+      <RecipeDetailModal
+        isOpen={isRecipeDetailModalOpen}
+        onOpenChange={setIsRecipeDetailModalOpen}
+        recipeDetails={selectedRecipeDetails}
+        isLoading={isFetchingDetails}
+        error={detailError}
+      />
 
       <footer className="py-6 bg-card border-t border-border">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
