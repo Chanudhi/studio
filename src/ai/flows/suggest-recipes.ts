@@ -53,6 +53,7 @@ const suggestRecipeNamesPrompt = ai.definePrompt({
   input: {schema: SuggestRecipesInputSchema},
   output: {schema: z.object({ recipeNames: z.array(z.string()).describe("An array of unique recipe names based on the input. Aim for 2-3 diverse suggestions if possible.") })},
   prompt: `You are a recipe suggestion AI. Your task is to suggest recipe names based on a list of available ingredients, dietary restrictions, and cuisine preferences.
+The recipe names MUST be concise and suitable for searching on a recipe database like TheMealDB. Aim for common dish names or simple descriptions (e.g., "Chicken Stir Fry", "Tomato Soup", "Pasta Carbonara"). Avoid overly long or highly specific, unique names that are unlikely to be found in a general recipe database.
 You MUST respond with a JSON object matching the specified output schema.
 The JSON object should have a key "recipeNames", which is an array of strings. Each string should be a recipe name.
 If no recipes can be found based on the input, the "recipeNames" array MUST be empty (e.g., { "recipeNames": [] }).
