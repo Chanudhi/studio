@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ChefHat, Utensils } from 'lucide-react';
 import IngredientForm from '@/components/fridge-chef/IngredientForm';
 import RecipeList from '@/components/fridge-chef/RecipeList';
@@ -13,7 +14,7 @@ export default function FridgeChefPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(Date.now()); // To reset form
 
-  const handleFormSubmitResult = (state: FormState) => {
+  const handleFormSubmitResult = useCallback((state: FormState) => {
     setIsLoading(false);
     if (state.error) {
       setError(state.error);
@@ -28,7 +29,7 @@ export default function FridgeChefPage() {
         // setFormKey(Date.now()); 
       }
     }
-  };
+  }, []); // State setters (setIsLoading, setError, setRecipes, setMessage) are stable and don't need to be in deps.
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
